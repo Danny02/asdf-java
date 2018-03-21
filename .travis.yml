@@ -1,8 +1,8 @@
 language: c
-script: asdf plugin-test java https://github.com/skotchpine/asdf-java.git
 before_script:
   - git clone https://github.com/asdf-vm/asdf.git
   - . asdf/asdf.sh
+script: asdf plugin-test java https://github.com/Danny02/asdf-java.git
 os:
   - linux
   - osx

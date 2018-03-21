@@ -3,190 +3,88 @@
 # this is global for error reporting
 ASDF_JAVA_ERROR=""
 
-# Download the java source from Oracle, copy files and cleanup.
+# Download the java source from java.net, copy files and cleanup.
 install_java() {
 	local version=$1
 	local destdir=$2
 
-	local variant=$(get_variant)
+	local arch=$(get_arch)
 	[[ -z "$ASDF_JAVA_ERROR" ]] || return
 
-	get_java $version $variant $destdir
+	get_java $version $arch $destdir
 	[[ -z "$ASDF_JAVA_ERROR" ]] || return
 
-	unpack_java $version $variant $destdir
+	unpack_java $destdir
 	[[ -z "$ASDF_JAVA_ERROR" ]] || return
 }
 
-# Get the "variant" piece of the Oracle url.
-get_variant() {
+# Get the "arch" piece of the Oracle url.
+get_arch() {
 	case "$(uname -s)" in
 		Linux)
 			case "$(uname -m)" in
-				x86_64) echo linux-x64.tar.gz ;;
-				i[[3-9]]86) echo linux-i586.tar.gz ;;
+				x86_64) echo linux ;;
 				*) ASDF_JAVA_ERROR="$(uname -m) is not supported on linux" ;;
 			esac ;;
 		Darwin)
 			case "$(uname -m)" in
-				x86_64) echo macosx-x64.dmg ;;
+				x86_64) echo osx ;;
 				*) ASDF_JAVA_ERROR="$(uname -m) is not supported on macos" ;;
 			esac ;;
 		*) ASDF_JAVA_ERROR="$(uname -s) is not supported" ;;
 	esac
 }
 
-get_current_variant() {
-	variant=$1
-
-	if [[ "$variant" == *"mac"* ]]; then
-		variant=$(echo $variant | sed -e 's/mac//')
-	fi
-
-	if [[ "$variant" == *"tar"* ]]; then
-		echo $variant | sed -e 's/.tar/_bin.tar/'
-	elif [[ "$variant" == *"dmg"* ]]; then
-		echo $variant | sed -e 's/.dmg/_bin.dmg/'
-	fi
-}
-
-# Download java from Oracle.
+# Download java from java.net
 get_java() {
 	local version=$1
-	local variant=$2
+	local arch=$2
 	local destdir=$3
 
-	local url=
-	local base=http://download.oracle.com/otn-pub/java/jdk/
-	local oracle_version=$(echo $version | sed -e 's/\./u/g')
-
-	case $version in
-		9.0.4) url=$base$version+11/c2514751926b4512b076cc82f959763f/jdk-$version'_'$(get_current_variant $variant) ;;
-		9.0.1) url=$base$version+11/jdk-$version'_'$(get_current_variant $variant) ;;
-		8.161) url=$base$oracle_version-b12/2f38c3b165be4555a1fa6e98c45e0808/jdk-$oracle_version-$variant ;;
-		8.151) url=$base$oracle_version-b12/e758a0de34e24606bca991d704f6dcbf/jdk-$oracle_version-$variant ;;
-		8.144) url=$base$oracle_version-b01/090f390dda5b47b9b721c7dfaa008135/jdk-$oracle_version-$variant ;;
-		8.141) url=$base$oracle_version-b15/336fa29ff2bb4ef291e347e091f7f4a7/jdk-$oracle_version-$variant ;;
-		8.131) url=$base$oracle_version-b11/d54c1d3a095b4ff2b6607d096fa80163/jdk-$oracle_version-$variant ;;
-		8.121) url=$base$oracle_version-b13/e9e7ea248e2c4826b92b3f075a80e441/jdk-$oracle_version-$variant ;;
-		*) ASDF_JAVA_ERROR="$version is not a supported version" ;;
-	esac
-	[[ -z "$ASDF_JAVA_ERROR" ]] || return
-
+	local main_version=$(echo $version | cut -d. -f1)
+	local url=https://download.java.net/java/GA/jdk$main_version/$version/binaries/openjdk-${version}_$arch-x64_bin.tar.gz
+	
 	echo "---- ASDF JAVA MESSAGE ----"
 	echo "downloading: $url"
 
 	curl -fLC - \
-		--progress-bar --silent \
+		--progress-bar \
 		--retry 3 --retry-delay 3 \
 		-b oraclelicense=a \
-		-o $destdir/$variant $url
+		-o $destdir/openjdk.tar.gz $url
 
 	[[ $? != 0 ]] && ASDF_JAVA_ERROR="downloading java dist"
 }
 
 # Unpacks all kinds of sources.
 unpack_java() {
-	local version=$1
-	local variant=$2
-	local destdir=$3
+	local destdir=$1
 
 	echo "---- ASDF JAVA MESSAGE ----"
 	echo "expanding java dist"
 
-	case $variant in
-		*.tar.gz) unpack_tar $variant $destdir ;;
-		*.dmg)    unpack_dmg $variant $destdir ;;
-		*) ASDF_JAVA_ERROR="$variant is not supported" ;;
-	esac
-}
-
 # Unarchive a tar archive into the install directory and cleanup.
 #
 # NOTE: Using $origin as a memo rather than executing in a subshell
 #   because errors won't be persisted from a subshell.
 #
 # TODO: Should be sanitized with error reporting.
-unpack_tar() {
-	local variant=$1
-	local destdir=$2
-
 	local origin=$(pwd)
 	cd $destdir; {
-		tar -xzf $variant
+		tar -xzf openjdk.tar.gz
 		[[ $? == 0 ]] || ASDF_JAVA_ERROR="expanding java dist"
-		rm $variant
+		rm openjdk.tar.gz
 
-		local pkg=$(echo * | grep jdk)
+		local pkg=$(find jdk-* -name bin -exec dirname {} \;)
 		mv $pkg/* .
-		rmdir $pkg
+		rm -rf jdk-*
 	}; cd $origin
-}
-
-# Unarchive a tar archive into the install directory and cleanup.
-#
-# NOTE: Using $origin as a memo rather than executing in a subshell
-#   because errors won't be persisted from a subshell.
-#
-# TODO: Should be sanitized with error reporting.
-unpack_dmg() {
-	local variant=$1
-	local destdir=$2
-
-	local origin=$(pwd)
-	cd $destdir; {
-		local pkgdir=$destdir/asdf_tmp_pkgdir
-		local imgdir=$destdir/asdf_tmp_imgdir
-
-		mount_dmg $imgdir $variant
-		[[ -z "$ASDF_JAVA_ERROR" ]] || return
-
-		pkgutil --expand $imgdir/*.pkg $pkgdir
-		if [[ $? != 0 ]]; then
-			ASDF_JAVA_ERROR="expanding java dist"
-			unmount_dmg $imgdir
-			return
-		fi
-
-		cd $pkgdir/jdk*.pkg; {
-			cat Payload | gzip -d | cpio -i
-			if [[ $? != 0 ]] || ! [[ -d Contents ]]; then
-				ASDF_JAVA_ERROR="demangling dist payload"
-			fi
-			mv Contents/Home/* $destdir/
-		}; cd $destdir
-
-		unmount_dmg $imgdir
-		rm -r $destdir/$variant
-	}; cd $origin
-}
-
-mount_dmg() {
-	local dir=$1
-	local dev=$2
-
-	hdiutil mount -quiet -mountpoint $dir $dev
-	[[ $? == 0 ]] || ASDF_JAVA_ERROR="mounting java dist"
-}
-
-unmount_dmg() {
-	local dir=$1
-
-	hdiutil unmount -quiet $dir
-	if [[ $? != 0 ]]; then
-		[[ -z "$ASDF_JAVA_ERROR" ]] || \
-			ASDF_JAVA_ERROR="unmounting java dist"
-
-		echo "---- ASDF JAVA WARNING ----"
-		echo "The java dist is still mounted at $dir."
-		echo " Use `hdiutil unmount` to unmount it."
-		echo "----"
-	fi
 }
 
 #
 # MAIN
 #
+echo $ASDF_INSTALL_PATH
 install_java $ASDF_INSTALL_VERSION $ASDF_INSTALL_PATH
 
 if ! [[ -z "$ASDF_JAVA_ERROR" ]]; then
