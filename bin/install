@@ -44,9 +44,10 @@ get_java() {
     local url
 
 	if [ $(echo $version | head -c1) == o ]; then
-	    local main_version=$(echo $version | cut -d. -f1)
+		local oversion=$(echo $version | tail -c+2)
+	    local main_version=$(echo $oversion | cut -d. -f1)
 		local oarch = $([ $arch = Linux ] && echo linux || echo osx)
-    	url=https://download.java.net/java/GA/jdk$main_version/$version/binaries/openjdk-${version}_$oarch-x64_bin.tar.gz
+    	url=https://download.java.net/java/GA/jdk$main_version/$oversion/binaries/openjdk-${oversion}_$oarch-x64_bin.tar.gz
 	else
 		local main_version=$(echo $version | sed -E "s/^([0-9]+).*/\1/g")
 		local other=$([ "$main_version" == 8 ] && echo "" || echo "-")
