@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+set -x
 # this is global for error reporting
 ASDF_JAVA_ERROR=""
 
@@ -46,7 +46,7 @@ get_java() {
 	if [ $(echo $version | head -c1) == o ]; then
 		local oversion=$(echo $version | tail -c+2)
 	    local main_version=$(echo $oversion | cut -d. -f1)
-		local oarch = $([ $arch = Linux ] && echo linux || echo osx)
+		local oarch=$([ $arch = Linux ] && echo linux || echo osx)
     	url=https://download.java.net/java/GA/jdk$main_version/$oversion/binaries/openjdk-${oversion}_$oarch-x64_bin.tar.gz
 	else
 		local main_version=$(echo $version | sed -E "s/^([0-9]+).*/\1/g")
