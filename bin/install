@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -x
 
 # this is global for error reporting
 ASDF_JAVA_ERROR=""
@@ -42,9 +41,9 @@ get_java() {
 	local arch=$2
 	local destdir=$3
 
-	local main_version=$(echo $version | sed -r "s/^([0-9]+).*/\1/g")
+	local main_version=$(echo $version | sed -E "s/^([0-9]+).*/\1/g")
 	local other=$([ "$main_version" == 8 ] && echo "" || echo "-")
-	local escaped_version=$(echo $version | sed -r "s/\./%2B/g")
+	local escaped_version=$(echo $version | sed "s/\./%2B/g")
 	local url=https://github.com/AdoptOpenJDK/openjdk$main_version-releases/releases/download/jdk$other$escaped_version/OpenJDK${main_version}_x64_${arch}_jdk$other$version.tar.gz
 	
 	echo "---- ASDF JAVA MESSAGE ----"
@@ -78,7 +77,7 @@ unpack_java() {
 		[[ $? == 0 ]] || ASDF_JAVA_ERROR="expanding java dist"
 		rm openjdk.tar.gz
 
-		local pkg=$(find jdk-* -name bin -exec dirname {} \;)
+		local pkg=$(find jdk* -name bin -exec dirname {} \;)
 		[[ $? == 0 ]] || ASDF_JAVA_ERROR="retrieving jdk folder"
 		mv $pkg/* .
 		rm -rf jdk-*
