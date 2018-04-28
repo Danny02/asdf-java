@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -x
 
 # this is global for error reporting
 ASDF_JAVA_ERROR=""
@@ -11,7 +12,7 @@ install_java() {
 	local arch=$(get_arch)
 	[[ -z "$ASDF_JAVA_ERROR" ]] || return
 
-	get_java $version $arch $destdir
+	get_java "$version" "$arch" "$destdir"
 	[[ -z "$ASDF_JAVA_ERROR" ]] || return
 
 	unpack_java $destdir
@@ -23,12 +24,12 @@ get_arch() {
 	case "$(uname -s)" in
 		Linux)
 			case "$(uname -m)" in
-				x86_64) echo linux ;;
+				x86_64) echo Linux ;;
 				*) ASDF_JAVA_ERROR="$(uname -m) is not supported on linux" ;;
 			esac ;;
 		Darwin)
 			case "$(uname -m)" in
-				x86_64) echo osx ;;
+				x86_64) echo Mac ;;
 				*) ASDF_JAVA_ERROR="$(uname -m) is not supported on macos" ;;
 			esac ;;
 		*) ASDF_JAVA_ERROR="$(uname -s) is not supported" ;;
@@ -41,8 +42,10 @@ get_java() {
 	local arch=$2
 	local destdir=$3
 
-	local main_version=$(echo $version | cut -d. -f1)
-	local url=https://download.java.net/java/GA/jdk$main_version/$version/binaries/openjdk-${version}_$arch-x64_bin.tar.gz
+	local main_version=$(echo $version | sed -r "s/^([0-9]+).*/\1/g")
+	local other=$([ "$main_version" == 8 ] && echo "" || echo "-")
+	local escaped_version=$(echo $version | sed -r "s/\./%2B/g")
+	local url=https://github.com/AdoptOpenJDK/openjdk$main_version-releases/releases/download/jdk$other$escaped_version/OpenJDK${main_version}_x64_${arch}_jdk$other$version.tar.gz
 	
 	echo "---- ASDF JAVA MESSAGE ----"
 	echo "downloading: $url"
@@ -76,6 +79,7 @@ unpack_java() {
 		rm openjdk.tar.gz
 
 		local pkg=$(find jdk-* -name bin -exec dirname {} \;)
+		[[ $? == 0 ]] || ASDF_JAVA_ERROR="retrieving jdk folder"
 		mv $pkg/* .
 		rm -rf jdk-*
 	}; cd $origin
