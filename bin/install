@@ -43,11 +43,13 @@ get_java() {
 
     local url
 
-	if [ $(echo $version | head -c1) == o ]; then
+	if [ $version == o* ]; then
 		local oversion=$(echo $version | tail -c+2)
 	    local main_version=$(echo $oversion | cut -d. -f1)
 		local oarch=$([ $arch = Linux ] && echo linux || echo osx)
     	url=https://download.java.net/java/GA/jdk$main_version/$oversion/binaries/openjdk-${oversion}_$oarch-x64_bin.tar.gz
+	elif [ $version == graalvm* ]; then
+    	url=https://github.com/oracle/graal/releases/download/vm-1.0.0-rc2/graalvm-ce-1.0.0-rc2-linux-amd64.tar.gz
 	else
 		local main_version=$(echo $version | sed -E "s/^([0-9]+).*/\1/g")
 		local other=$([ "$main_version" == 8 ] && echo "" || echo "-")
@@ -62,7 +64,7 @@ get_java() {
 		--progress-bar \
 		--retry 3 --retry-delay 3 \
 		-b oraclelicense=a \
-		-o $destdir/openjdk.tar.gz $url
+		-o $destdir/asdfjdk.tar.gz $url
 
 	[[ $? != 0 ]] && ASDF_JAVA_ERROR="downloading java dist"
 }
@@ -82,11 +84,11 @@ unpack_java() {
 # TODO: Should be sanitized with error reporting.
 	local origin=$(pwd)
 	cd $destdir; {
-		tar -xzf openjdk.tar.gz
+		tar -xzf asdfjdk.tar.gz
 		[[ $? == 0 ]] || ASDF_JAVA_ERROR="expanding java dist"
-		rm openjdk.tar.gz
+		rm asdfjdk.tar.gz
 
-		local pkg=$(find jdk* -name bin -exec dirname {} \;)
+		local pkg=$(find . -name bin -exec dirname {} \;)
 		[[ $? == 0 ]] || ASDF_JAVA_ERROR="retrieving jdk folder"
 		mv $pkg/* .
 		rm -rf jdk-*
