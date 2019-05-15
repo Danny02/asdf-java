@@ -43,13 +43,13 @@ get_java() {
 
     local url
 	local oarch=$([ $arch = Linux ] && echo linux || echo osx)
-	local garch=$([ $arch = Linux ] && echo linux || echo macos)
+	local garch=$([ $arch = Linux ] && echo linux || echo darwin)
 
 	case "$version" in
 		8)			url=https://github.com/AdoptOpenJDK/openjdk8-releases/releases/download/jdk8u172-b11/OpenJDK8_x64_${arch}_jdk8u172-b11.tar.gz ;;
 		11) 		url=https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_${oarch}-x64_bin.tar.gz ;;
 		12) 		url=https://download.java.net/java/GA/jdk12/GPL/openjdk-12_${oarch}-x64_bin.tar.gz ;;
-		graalvm*)	url=https://github.com/oracle/graal/releases/download/vm-1.0.0-rc14/graalvm-ce-1.0.0-rc14-${garch}-amd64.tar.gz ;;
+		graalvm-19.0.0)	url=https://github.com/oracle/graal/releases/download/vm-19.0.0/graalvm-ce-${garch}-amd64-19.0.0.tar.gz ;;
 	esac
 
 	echo "---- ASDF JAVA MESSAGE ----"
@@ -83,7 +83,7 @@ unpack_java() {
 		[[ $? == 0 ]] || ASDF_JAVA_ERROR="expanding java dist"
 		rm asdfjdk.tar.gz
 
-		local pkg=$(find . -name bin -exec dirname {} \; | grep -v jre)
+		local pkg=$(find . -name bin | awk '{ print length, $0 }'  | sort -n -s | cut -d" " -f2- | head -1 | xargs dirname)
 		[[ $? == 0 ]] || ASDF_JAVA_ERROR="retrieving jdk folder"
 		mv $pkg/* .
 		rm -rf jdk*
